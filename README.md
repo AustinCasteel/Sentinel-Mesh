@@ -133,7 +133,7 @@ Both are local inference servers, but they serve different niches:
 | **Overhead** | Standard | Lower resource consumption |
 | **Hardware** | CPU or GPU | Hybrid CPU/GPU/NPU — splits inference across all available silicon |
 | **Default port** | 11434 | 13305 |
-| **Install** | `brew install ollama` | See [lemonade-server.ai](https://lemonade-server.ai) |
+| **Install** | See [ollama.com](https://ollama.com) | See [lemonade-server.ai](https://lemonade-server.ai) |
 | **Multi-modal** | Text, vision | Text, vision, image, speech, transcription, embeddings |
 
 ---
