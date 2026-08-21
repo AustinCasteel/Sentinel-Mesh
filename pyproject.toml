@@ -1,0 +1,113 @@
+[project]
+name = "sentinel-mesh"
+version = "0.1.0"
+description = "Autonomous Threat Triage & Incident Response Multi-Agent System"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Austin Casteel" }]
+
+dependencies = [
+    # ── Agent Orchestration ──────────────────────────────────────
+    "langgraph>=0.4",
+    "langgraph-supervisor>=0.0.8",
+    "langchain>=0.3",
+    "langchain-core>=0.3",
+    "langchain-openai>=0.3",
+    # ── LLM Providers ───────────────────────────────────────────
+    "openai>=1.60",
+    "ollama>=0.4",
+    "boto3>=1.35",
+    # ── Vector Store ────────────────────────────────────────────
+    "qdrant-client>=1.12",
+    # ── Knowledge Graph ─────────────────────────────────────────
+    "neo4j>=5.25",
+    # ── Model Context Protocol ──────────────────────────────────
+    "mcp[cli]>=1.0",
+    # ── API Framework ───────────────────────────────────────────
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sse-starlette>=2.0",
+    # ── Configuration ───────────────────────────────────────────
+    "pydantic>=2.10",
+    "pydantic-settings>=2.6",
+    # ── Observability ───────────────────────────────────────────
+    "opentelemetry-api>=1.28",
+    "opentelemetry-sdk>=1.28",
+    "opentelemetry-exporter-otlp>=1.28",
+    "opentelemetry-instrumentation-fastapi>=0.49b0",
+    "langfuse>=2.50",
+    # ── Utilities ───────────────────────────────────────────────
+    "httpx>=0.28",
+    "python-dotenv>=1.0",
+    "fastmcp>=3.4.7",
+    "textual>=0.70.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "types-boto3>=1.35",
+]
+
+[project.scripts]
+sentinel-tui = "src.tui:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# ── Ruff ────────────────────────────────────────────────────────
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "T20", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"eval/*" = ["T20"]  # CLI tool — print is expected
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+# ── Mypy ────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = [
+    "ollama.*",
+    "langfuse.*",
+    "langgraph.*",
+    "langgraph_supervisor.*",
+    "langchain_core.*",
+    "langchain_openai.*",
+    "neo4j.*",
+    "qdrant_client.*",
+    "mcp.*",
+    "sse_starlette.*",
+]
+ignore_missing_imports = true
+
+# ── Pytest ──────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests", "eval"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests requiring external services",
+]

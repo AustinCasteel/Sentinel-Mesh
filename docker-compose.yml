@@ -1,0 +1,249 @@
+# ═══════════════════════════════════════════════════════════════
+#  SentinelMesh — Docker Compose Stack
+#
+#  One-command setup:  docker compose up
+#
+#  Services:
+#    sentinel-mesh       — FastAPI application (port 8000)
+#    qdrant              — Vector store (port 6333)
+#    neo4j               — Knowledge graph (ports 7474, 7687)
+#    jaeger              — OpenTelemetry trace UI (port 16686)
+#    langfuse            — LLM observability (port 3000)
+#    langfuse-db         — PostgreSQL for Langfuse
+#    langfuse-clickhouse — ClickHouse OLAP backend for Langfuse v4
+#    langfuse-minio      — S3-compatible blob storage for Langfuse v4
+#    langfuse-redis      — Queue and caching for Langfuse v4
+# ═══════════════════════════════════════════════════════════════
+
+services:
+  # ── SentinelMesh API ─────────────────────────────────────────
+  sentinel-mesh:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - SENTINEL_QDRANT_HOST=qdrant
+      - SENTINEL_NEO4J_URI=bolt://neo4j:7687
+      - SENTINEL_OTEL_EXPORTER_ENDPOINT=http://jaeger:4317
+      - SENTINEL_LANGFUSE_HOST=http://langfuse:3000
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+  # ── Qdrant Vector Store ──────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+  # ── Neo4j Knowledge Graph ───────────────────────────────────
+  neo4j:
+    image: neo4j:5-community
+    ports:
+      - "7474:7474"   # Browser UI
+      - "7687:7687"   # Bolt protocol
+    environment:
+      - NEO4J_AUTH=neo4j/sentinel-mesh
+      - NEO4J_PLUGINS=["apoc"]
+    volumes:
+      - neo4j-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+  # ── Jaeger v2 (OpenTelemetry UI) ─────────────────────────────
+  jaeger:
+    image: jaegertracing/jaeger:2.20.0
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    volumes:
+      - ./infra/jaeger-config.yaml:/etc/jaeger/jaeger-config.yaml
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+  # ── Langfuse (LLM Observability) ───────────────────────────
+  langfuse:
+    image: langfuse/langfuse:latest
+    ports:
+      - "3000:3000"
+    environment:
+      # -- Postgres
+      - DATABASE_URL=postgresql://langfuse:langfuse@langfuse-db:5432/langfuse
+      # -- ClickHouse
+      - CLICKHOUSE_URL=http://langfuse-clickhouse:8123
+      - CLICKHOUSE_MIGRATION_URL=clickhouse://langfuse-clickhouse:9000
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=langfuse
+      - CLICKHOUSE_CLUSTER_ENABLED=false
+      # -- S3 blob storage (MinIO)
+      - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_REGION=us-east-1
+      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://langfuse-minio:9000
+      - LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY=langfuse-secret
+      - LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
+      # -- Redis queue & caching
+      - REDIS_HOST=langfuse-redis
+      - REDIS_PORT=6379
+      # -- Auth & Encryption
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=sentinel-mesh-secret-change-in-production
+      - SALT=sentinel-mesh-salt-change-in-production
+      - ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-minio:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+  # ── Langfuse Worker (Queue processor for ClickHouse & MinIO) ──
+  langfuse-worker:
+    image: langfuse/langfuse-worker:latest
+    environment:
+      # -- Postgres
+      - DATABASE_URL=postgresql://langfuse:langfuse@langfuse-db:5432/langfuse
+      # -- ClickHouse
+      - CLICKHOUSE_URL=http://langfuse-clickhouse:8123
+      - CLICKHOUSE_MIGRATION_URL=clickhouse://langfuse-clickhouse:9000
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=langfuse
+      - CLICKHOUSE_CLUSTER_ENABLED=false
+      # -- S3 blob storage (MinIO)
+      - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_REGION=us-east-1
+      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://langfuse-minio:9000
+      - LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY=langfuse-secret
+      - LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
+      # -- Redis queue & caching
+      - REDIS_HOST=langfuse-redis
+      - REDIS_PORT=6379
+      # -- Auth & Encryption
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=sentinel-mesh-secret-change-in-production
+      - SALT=sentinel-mesh-salt-change-in-production
+      - ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-minio:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+  # ── Langfuse PostgreSQL ─────────────────────────────────────
+  langfuse-db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=langfuse
+      - POSTGRES_PASSWORD=langfuse
+      - POSTGRES_DB=langfuse
+    volumes:
+      - langfuse-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+  # ── Langfuse ClickHouse (OLAP backend for v3+) ──────────────
+  #    Langfuse v4 requires ClickHouse >= 25.12 (26.4+ recommended)
+  langfuse-clickhouse:
+    image: clickhouse/clickhouse-server:26.4-alpine
+    environment:
+      - CLICKHOUSE_DB=default
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=langfuse
+    volumes:
+      - langfuse-ch-data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --password langfuse --query 'SELECT 1'"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+  # ── Langfuse MinIO (S3-compatible blob storage) ─────────────
+  langfuse-minio:
+    image: minio/minio:latest
+    entrypoint: sh
+    command: -c 'mkdir -p /data/langfuse && minio server /data --console-address ":9001"'
+    environment:
+      - MINIO_ROOT_USER=langfuse
+      - MINIO_ROOT_PASSWORD=langfuse-secret
+    volumes:
+      - langfuse-minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+  # ── Langfuse Redis (Ingestion queue) ────────────────────────
+  langfuse-redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+volumes:
+  qdrant-data:
+  neo4j-data:
+  langfuse-db-data:
+  langfuse-ch-data:
+  langfuse-minio-data:
+
+networks:
+  sentinel-net:
+    driver: bridge

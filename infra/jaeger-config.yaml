@@ -1,0 +1,37 @@
+# ═══════════════════════════════════════════════════════════════
+#  Jaeger v2 Configuration
+#
+#  Jaeger v2 is built on the OpenTelemetry Collector framework.
+#  This config defines OTLP receivers and in-memory storage for
+#  local development.
+# ═══════════════════════════════════════════════════════════════
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+
+extensions:
+  jaeger_storage:
+    backends:
+      memory_store:
+        memory:
+          max_traces: 50000
+
+exporters:
+  jaeger_storage_exporter:
+    trace_storage: memory_store
+
+service:
+  extensions: [jaeger_storage]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [jaeger_storage_exporter]

