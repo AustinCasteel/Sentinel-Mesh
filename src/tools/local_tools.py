@@ -12,7 +12,7 @@ import json
 import re
 from datetime import datetime
 
-from langchain_core.tools import tool
+from langchain_core.tools import BaseTool, tool
 
 
 @tool
@@ -247,7 +247,7 @@ def _is_valid_ip(ip: str) -> bool:
         return False
 
 
-def get_local_tools() -> list:
+def get_local_tools() -> list[BaseTool]:
     """Return all local deterministic tools as a list."""
     return [
         classify_severity,

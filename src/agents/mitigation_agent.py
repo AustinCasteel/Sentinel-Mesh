@@ -11,14 +11,12 @@ tools for deterministic operations (firewall rules, CIDR validation).
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.prebuilt import create_react_agent
 
-from src.tools.local_tools import (
-    generate_firewall_rule,
-    validate_network_cidr,
-)
+from src.tools.local_tools import generate_firewall_rule, validate_network_cidr
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +60,7 @@ Your final response MUST include a structured mitigation plan:
 """
 
 
-def create_mitigation_agent(llm: BaseChatModel) -> any:
+def create_mitigation_agent(llm: BaseChatModel) -> Any:
     """Build and return the mitigation react agent.
 
     Parameters

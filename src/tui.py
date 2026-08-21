@@ -19,7 +19,7 @@ from typing import Any, ClassVar
 import httpx
 from textual import work
 from textual.app import App, ComposeResult
-from textual.binding import Binding
+from textual.binding import Binding, BindingType
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import (
@@ -206,7 +206,7 @@ class SentinelMeshTUI(App[None]):
     }
     """
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         Binding("s", "simulate_alert", "Simulate Alert", priority=True),
         Binding("r", "refresh_alerts", "Refresh Feed", priority=True),
         Binding("q", "quit", "Quit", priority=True),

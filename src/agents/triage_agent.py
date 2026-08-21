@@ -13,6 +13,7 @@ classification).
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.prebuilt import create_react_agent
@@ -55,7 +56,7 @@ Be precise and evidence-based.  Never speculate without marking it as such.
 """
 
 
-def create_triage_agent(llm: BaseChatModel) -> any:
+def create_triage_agent(llm: BaseChatModel) -> Any:
     """Build and return the triage react agent.
 
     Parameters

@@ -54,6 +54,16 @@ dev = [
     "types-boto3>=1.35",
 ]
 
+[dependency-groups]
+dev = [
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "types-boto3>=1.35",
+]
+
 [project.scripts]
 sentinel-tui = "src.tui:main"
 
@@ -81,26 +91,31 @@ known-first-party = ["src"]
 
 # ── Mypy ────────────────────────────────────────────────────────
 [tool.mypy]
-python_version = "3.11"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+follow_imports = "silent"
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
 module = [
-    "ollama.*",
     "langfuse.*",
     "langgraph.*",
     "langgraph_supervisor.*",
     "langchain_core.*",
     "langchain_openai.*",
+    "langchain_aws.*",
     "neo4j.*",
     "qdrant_client.*",
     "mcp.*",
     "sse_starlette.*",
 ]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["numpy", "numpy.*"]
+follow_imports = "skip"
 ignore_missing_imports = true
 
 # ── Pytest ──────────────────────────────────────────────────────
